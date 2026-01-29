@@ -1,4 +1,4 @@
-
+import { supabase } from './supabaseClient'  //自添加
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   LayoutDashboard, 
@@ -32,6 +32,19 @@ const App: React.FC = () => {
       return defaultValue;
     }
   };
+  // 将数据同步到 Supabase 的函数
+const syncToSupabase = async (data: any) => {
+  try {
+    // 假设你目前只是想测试连接，把所有的 ledger 记录存入 posts 表
+    const { error } = await supabase
+      .from('posts')
+      .insert([{ content: JSON.stringify(data) }]);
+    
+    if (error) console.error('Supabase 同步失败:', error.message);
+  } catch (e) {
+    console.error('网络错误:', e);
+  }
+};//自添加
 
   const [accounts, setAccounts] = useState<Account[]>(() => 
     getStoredItem('wt_accounts', [
@@ -57,12 +70,19 @@ const App: React.FC = () => {
   );
 
   useEffect(() => {
+    // 1. 先保存到本地
     localStorage.setItem('wt_accounts', JSON.stringify(accounts));
     localStorage.setItem('wt_ledger', JSON.stringify(ledger));
     localStorage.setItem('wt_categories', JSON.stringify(categories));
     localStorage.setItem('wt_deposits', JSON.stringify(deposits));
     localStorage.setItem('wt_stocks', JSON.stringify(stocks));
-  }, [accounts, ledger, categories, deposits, stocks]);
+
+    // 2. 只有当 ledger（账目列表）发生变化且不为空时，才同步到 Supabase
+    // 注意：这里要放在 useEffect 的大括号内部
+    if (ledger.length > 0) {
+      syncToSupabase(ledger);
+    }
+  }, [accounts, ledger, categories, deposits, stocks]); // 这里的大括号是 useEffect 的结束自修改
 
   const totalAccountBalance = useMemo(() => accounts.reduce((sum, a) => sum + Number(a.balance), 0), [accounts]);
   const totalDeposits = useMemo(() => deposits.reduce((sum, d) => sum + Number(d.principal), 0), [deposits]);
